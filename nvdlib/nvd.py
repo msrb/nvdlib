@@ -34,6 +34,7 @@ class NVD(object):
     def update(self):
         """Update feeds."""
         for feed in self.feeds:
+            # We don't really do updates now, we just download the latest gzip.
             feed.download()
 
     def get_cve(self, cve_id):
@@ -50,9 +51,7 @@ class NVD(object):
         for f in self.feeds:
             if f.name == feed_name or f.name in ('recent', 'modified'):
                 feed_candidates.append(f)
-                break
-        else:
-            return None
+
         for feed in feed_candidates:
             cve = feed.get_cve(cve_id)
             if cve is not None:

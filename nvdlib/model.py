@@ -12,7 +12,7 @@ class CVE(object):
         self.cve_id = cve_id
         self.references = references or []
         self.description = description or ""
-        self.configurations = configurations or {}
+        self.configurations = configurations or []
         self.impact = impact
         self.published_date = published_date
         self.last_modified_date = last_modified_date
@@ -75,8 +75,24 @@ class ConfigurationNode(object):
     def __init__(self, cpe=None, operator=ConfigurationOperators.OR, negate=False, children=None):
         self._cpe = cpe or []
         self._operator = operator
-        self._negate = negate
+        self._negate = negate or False
         self._children = children or []
+
+    @property
+    def cpe(self):
+        return self._cpe
+
+    @property
+    def operator(self):
+        return self._operator
+
+    @property
+    def negate(self):
+        return self._negate
+
+    @property
+    def children(self):
+        return self._children
 
     @classmethod
     def from_dict(cls, node_dict):
@@ -92,7 +108,6 @@ class ConfigurationNode(object):
         return cls(**kwargs)
 
 
-# noinspection PyPep8Naming
 class CPE(object):
 
     def __init__(self, vulnerable, cpe22Uri, cpe23Uri, versionStartIncluding=None, versionStartExcluding=None,
@@ -164,17 +179,9 @@ class CPE(object):
 
 class Impact(object):
 
-    def __init__(self, baseMetricV2, baseMetricV3, severity, exploitabilityScore, impactScore, obtainAllPrivilege=False,
-                 obtainUserPrivilege=False, obtainOtherPrivilege=False, userInteractionRequired=False):
+    def __init__(self, baseMetricV2, baseMetricV3):
         self._baseMetricV2 = baseMetricV2 or None
         self._baseMetricV3 = baseMetricV3 or None
-        self._severity = severity
-        self._exploitabilityScore = exploitabilityScore
-        self._impactScore = impactScore
-        self._obtainAllPrivilege = obtainAllPrivilege
-        self._obtainUserPrivilege = obtainUserPrivilege
-        self._obtainOtherPrivilege = obtainOtherPrivilege
-        self._userInteractionRequired = userInteractionRequired
 
     @property
     def baseMetricV2(self):
@@ -183,6 +190,30 @@ class Impact(object):
     @property
     def baseMetricV3(self):
         return self._baseMetricV3
+
+    @classmethod
+    def from_dict(cls, impact_dict):
+        baseMetricV2 = None
+        baseMetricV3 = None
+        if impact_dict.get('baseMetricV2'):
+            baseMetricV2 = BaseMetric.from_dict(impact_dict.get('baseMetricV2'))
+        if impact_dict.get('baseMetricV3'):
+            baseMetricV3 = BaseMetric.from_dict(impact_dict.get('baseMetricV3'))
+        return cls(baseMetricV2=baseMetricV2, baseMetricV3=baseMetricV3)
+
+
+class BaseMetric(object):
+
+    def __init__(self, cvss, severity, exploitabilityScore, impactScore, obtainAllPrivilege=False,
+                 obtainUserPrivilege=False, obtainOtherPrivilege=False, userInteractionRequired=False):
+        self._cvss = cvss
+        self._severity = severity
+        self._exploitabilityScore = exploitabilityScore
+        self._impactScore = impactScore
+        self._obtainAllPrivilege = obtainAllPrivilege
+        self._obtainUserPrivilege = obtainUserPrivilege
+        self._obtainOtherPrivilege = obtainOtherPrivilege
+        self._userInteractionRequired = userInteractionRequired
 
     @property
     def severity(self):
@@ -212,26 +243,31 @@ class Impact(object):
     def userInteractionRequired(self):
         return self._userInteractionRequired
 
+    @property
+    def cvssV2(self):
+        return self._cvss
+
+    @property
+    def cvssV3(self):
+        return self._cvss
+
     @classmethod
-    def from_dict(cls, impact_dict):
-        baseMetricV2 = None
-        baseMetricV3 = None
-        if impact_dict.get('baseMetricV2'):
-            baseMetricV2 = BaseMetric.from_dict(impact_dict.get('baseMetricV2'))
-        if impact_dict.get('baseMetricV3'):
-            baseMetricV3 = BaseMetric.from_dict(impact_dict.get('baseMetricV3'))
-        return cls(baseMetricV2=baseMetricV2,
-                   baseMetricV3=baseMetricV3,
-                   severity=impact_dict.get('severity'),
-                   exploitabilityScore=impact_dict.get('exploitabilityScore'),
-                   impactScore=impact_dict.get('impactScore'),
-                   obtainAllPrivilege=True if impact_dict.get('obtainAllPrivilege', '').lower() == 'true' else False,
-                   obtainUserPrivilege=True if impact_dict.get('obtainUserPrivilege', '').lower() == 'true' else False,
-                   obtainOtherPrivilege=True if impact_dict.get('obtainOtherPrivilege', '').lower() == 'true' else False,
-                   userInteractionRequired=True if impact_dict.get('userInteractionRequired', '').lower() == 'true' else False)
+    def from_dict(cls, metrics_dict):
+
+        cvss_dict = metrics_dict.get('cvssV2') or metrics_dict.get('cvssV3')
+        cvss = CVSS.from_dict(cvss_dict)
+
+        return cls(cvss=cvss,
+                   severity=metrics_dict.get('severity'),
+                   exploitabilityScore=metrics_dict.get('exploitabilityScore'),
+                   impactScore=metrics_dict.get('impactScore'),
+                   obtainAllPrivilege=(str(metrics_dict.get('obtainAllPrivilege', '')).lower() == 'true'),
+                   obtainUserPrivilege=(str(metrics_dict.get('obtainUserPrivilege', '')).lower() == 'true'),
+                   obtainOtherPrivilege=(str(metrics_dict.get('obtainOtherPrivilege', '')).lower() == 'true'),
+                   userInteractionRequired=(str(metrics_dict.get('userInteractionRequired', '')).lower() == 'true'))
 
 
-class BaseMetric(object):
+class CVSS(object):
 
     def __init__(self, version, vectorString, accessVector, accessComplexity, authentication, confidentialityImpact,
                  integrityImpact, availabilityImpact, baseScore):
@@ -282,13 +318,13 @@ class BaseMetric(object):
         return self._baseScore
 
     @classmethod
-    def from_dict(cls, metric_dict):
-        return cls(version=metric_dict.get('version'),
-                   vectorString=metric_dict.get('vectorString'),
-                   accessVector=metric_dict.get('accessVector'),
-                   accessComplexity=metric_dict.get('accessComplexity'),
-                   authentication=metric_dict.get('authentication'),
-                   confidentialityImpact=metric_dict.get('confidentialityImpact'),
-                   integrityImpact=metric_dict.get('integrityImpact'),
-                   availabilityImpact=metric_dict.get('availabilityImpact'),
-                   baseScore=metric_dict.get('baseScore'))
+    def from_dict(cls, cvss_dict):
+        return cls(version=cvss_dict.get('version'),
+                   vectorString=cvss_dict.get('vectorString'),
+                   accessVector=cvss_dict.get('accessVector'),
+                   accessComplexity=cvss_dict.get('accessComplexity'),
+                   authentication=cvss_dict.get('authentication'),
+                   confidentialityImpact=cvss_dict.get('confidentialityImpact'),
+                   integrityImpact=cvss_dict.get('integrityImpact'),
+                   availabilityImpact=cvss_dict.get('availabilityImpact'),
+                   baseScore=cvss_dict.get('baseScore'))
