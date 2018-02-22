@@ -12,5 +12,5 @@ for cve in nvd.cves():
     print(cve.cve_id)
 
 cve = nvd.get_cve('CVE-2017-5641')
-print(cve.impact.baseMetricV3.baseScore)
+print(cve.impact.baseMetricV2.cvssV2.baseScore)
 ```
