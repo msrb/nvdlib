@@ -8,7 +8,8 @@ VERSION = '4.0'
 class CVE(object):
     """Representation of a CVE entry from the NVD database."""
 
-    def __init__(self, cve_id, references, description, configurations, impact, published_date, last_modified_date):
+    def __init__(self, cve_id: str, references: list, description: str,
+                 configurations: list, impact: dict, published_date: str, last_modified_date: str):
         self.cve_id = cve_id
         self.references = references or []
         self.description = description or ""
@@ -72,7 +73,7 @@ class ConfigurationOperators(Enum):
 
 class ConfigurationNode(object):
 
-    def __init__(self, cpe=None, operator=ConfigurationOperators.OR, negate=False, children=None):
+    def __init__(self, cpe: list = None, operator=ConfigurationOperators.OR, negate=False, children: list = None):
         self._cpe = cpe or []
         self._operator = operator
         self._negate = negate or False
@@ -110,8 +111,8 @@ class ConfigurationNode(object):
 
 class CPE(object):
 
-    def __init__(self, vulnerable, cpe22Uri, cpe23Uri, versionStartIncluding=None, versionStartExcluding=None,
-                 versionEndIncluding=None, versionEndExcluding=None):
+    def __init__(self, vulnerable: bool, cpe22Uri: str, cpe23Uri: str, versionStartIncluding: str = None, versionStartExcluding: str = None,
+                 versionEndIncluding: str = None, versionEndExcluding: str = None):
         self._vulnerable = vulnerable
         self._cpe22Uri = cpe22Uri
         self._cpe23Uri = cpe23Uri
@@ -179,7 +180,7 @@ class CPE(object):
 
 class Impact(object):
 
-    def __init__(self, baseMetricV2, baseMetricV3):
+    def __init__(self, baseMetricV2: "BaseMetric", baseMetricV3: "BaseMetric"):
         self._baseMetricV2 = baseMetricV2 or None
         self._baseMetricV3 = baseMetricV3 or None
 
@@ -204,7 +205,7 @@ class Impact(object):
 
 class BaseMetric(object):
 
-    def __init__(self, cvss, severity, exploitabilityScore, impactScore, obtainAllPrivilege=False,
+    def __init__(self, cvss: "CVSS", severity: str, exploitabilityScore: int, impactScore: int, obtainAllPrivilege=False,
                  obtainUserPrivilege=False, obtainOtherPrivilege=False, userInteractionRequired=False):
         self._cvss = cvss
         self._severity = severity
@@ -269,8 +270,9 @@ class BaseMetric(object):
 
 class CVSS(object):
 
-    def __init__(self, version, vectorString, accessVector, accessComplexity, authentication, confidentialityImpact,
-                 integrityImpact, availabilityImpact, baseScore):
+    def __init__(self, version: str, vectorString: str, accessVector: str,
+                 accessComplexity: str, authentication: str, confidentialityImpact: str,
+                 integrityImpact: str, availabilityImpact: str, baseScore: int):
         self._version = version
         self._vectorString = vectorString
         self._accessVector = accessVector

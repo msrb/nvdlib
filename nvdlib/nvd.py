@@ -1,10 +1,12 @@
-import os
-import requests
+import datetime
+import gzip
 import hashlib
 import io
-import gzip
 import json
-import datetime
+import os
+import typing
+
+import requests
 
 from .model import CVE
 
@@ -19,7 +21,7 @@ _DEFAULT_DATA_DIR = os.path.join(_XDG_DATA_HOME, 'nvd/')
 
 class NVD(object):
 
-    def __init__(self, data_dir=None, feed_names=None):
+    def __init__(self, data_dir: str = None, feed_names: typing.Iterable[str] = None):
         self._data_dir = _DEFAULT_DATA_DIR
         if data_dir:
             self._data_dir = data_dir
@@ -84,7 +86,7 @@ class JsonFeed(object):
 
     _DATA_URL_TEMPLATE = 'https://static.nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-{feed}.json.gz'
 
-    def __init__(self, feed_name, data_dir=None):
+    def __init__(self, feed_name: str, data_dir: str = None):
         self._name = feed_name
 
         self._data_dir = data_dir or _DEFAULT_DATA_DIR
@@ -156,7 +158,7 @@ class JsonFeedMetadata(object):
 
     _METADATA_URL_TEMPLATE = 'https://static.nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-{feed}.meta'
 
-    def __init__(self, feed_name, data_dir=None):
+    def __init__(self, feed_name: str, data_dir: str = None):
         self._name = feed_name
 
         self._data_dir = data_dir or _DEFAULT_DATA_DIR
