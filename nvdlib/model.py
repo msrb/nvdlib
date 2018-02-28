@@ -46,7 +46,7 @@ class CVE(object):
         impact = Impact.from_dict(data.get('impact', {}))
 
         # Configurations
-        configurations = [ConfigurationNode(x) for x in data.get('configurations', {}).get('nodes', [])]
+        configurations = [ConfigurationNode.from_dict(x) for x in data.get('configurations', {}).get('nodes', [])]
 
         return cls(cve_id=cve_id,
                    references=references,
@@ -62,7 +62,7 @@ class ConfigurationOperators(Enum):
     AND = 2
 
     @classmethod
-    def from_str(cls, operator_str):
+    def from_string(cls, operator_str):
 
         if operator_str.upper() not in [x.name for x in cls]:
             raise ValueError('Unknown operator {op}'.format(op=operator_str))
