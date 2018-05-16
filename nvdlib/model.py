@@ -130,6 +130,14 @@ class CPE(object):
         return cpe.CPE(self.cpe22Uri).is_operating_system()
 
     @property
+    def vendor(self):
+        return cpe.CPE(self.cpe22Uri).get_vendor()
+
+    @property
+    def product(self):
+        return cpe.CPE(self.cpe22Uri).get_product()
+
+    @property
     def vulnerable(self):
         return self._vulnerable
 
