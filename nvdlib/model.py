@@ -115,6 +115,9 @@ class CPE(object):
         self._vulnerable = vulnerable
         self._cpe22Uri = cpe22Uri
         self._cpe23Uri = cpe23Uri
+
+        self._versionExact = cpe.CPE(cpe22Uri).get_version()[0] or None
+
         self._versionStartIncluding = versionStartIncluding
         self._versionStartExcluding = versionStartExcluding
         self._versionEndIncluding = versionEndIncluding
@@ -131,11 +134,11 @@ class CPE(object):
 
     @property
     def vendor(self):
-        return cpe.CPE(self.cpe22Uri).get_vendor()
+        return cpe.CPE(self.cpe22Uri).get_vendor()[0]
 
     @property
     def product(self):
-        return cpe.CPE(self.cpe22Uri).get_product()
+        return cpe.CPE(self.cpe22Uri).get_product()[0]
 
     @property
     def vulnerable(self):
@@ -148,6 +151,10 @@ class CPE(object):
     @property
     def cpe23Uri(self):
         return self._cpe23Uri
+
+    @property
+    def versionExact(self):
+        return self._versionExact
 
     @property
     def versionStartIncluding(self):
