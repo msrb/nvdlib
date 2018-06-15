@@ -1,6 +1,13 @@
-from enum import Enum
 import datetime
 import cpe
+
+import typing
+
+from collections import namedtuple
+from enum import Enum
+from itertools import chain
+from nvdlib.utils import AttrDict
+
 
 VERSION = '4.0'
 
@@ -8,15 +15,85 @@ VERSION = '4.0'
 class CVE(object):
     """Representation of a CVE entry from the NVD database."""
 
-    def __init__(self, cve_id, references, description, configurations, impact, published_date, last_modified_date):
+    def __init__(self, cve_id: str, affects: "AffectsNode", references: list, description: str,
+                 configurations: list, impact: dict, published_date: str, last_modified_date: str):
         self.cve_id = cve_id
+        self.affects = affects
         self.references = references or []
         self.description = description or ""
         self.configurations = configurations or []
         self.impact = impact
         self.published_date = published_date
         self.last_modified_date = last_modified_date
-        # TODO: some attributes are missing
+        # TODO: check for missing attributes
+
+    def get_cpe(self, cpe_type=None) -> list:
+        def _is_type(uri: str, t: str):
+            return uri.startswith("cpe:/%s" % t)
+
+        cpe_list = list()
+        for node in self.configurations:
+            cpe_list.extend([cpe for cpe in node.cpe if _is_type(cpe.cpe22Uri, cpe_type)])
+
+        return cpe_list
+
+    def get_affected_vendors(self) -> typing.List[str]:
+        """Get affected vendors.
+
+        :returns: List[str], list of affected vendors
+        """
+        return list(self.affects.keys())
+
+    def get_affected_products(self, vendor: str = None) -> typing.List["ProductNode"]:
+        """Get affected products.
+
+        :returns: List[ProductNode], list of affected products
+        """
+        affected_products = list()
+
+        if not vendor:
+            affected_products = list(chain(*self.affects.values()))
+
+        else:
+            affected_products.extend([
+                p for p in self.affects.values()
+                if p.vendor == vendor
+            ])
+
+        return affected_products
+
+    def get_affected_versions(self, filter_by: typing.Union[tuple, str]) -> typing.List[str]:
+        """Get affected versions.
+
+        :param filter_by: typing.Union[tuple, str]
+
+            Either tuple of (vendor, product) or cpe string to uniquely identify which
+            affected products should be returned.
+
+        :returns: List[str], list of affected versions of a given product
+        """
+        if isinstance(filter_by, tuple):
+            v_name, p_name = filter_by
+
+        elif isinstance(filter_by, str):
+            parsed_cpe = cpe.CPE(filter_by)
+            v_name, = parsed_cpe.get_vendor()
+            p_name, = parsed_cpe.get_product()
+
+        else:
+            raise TypeError(
+                "Argument `by` expected to be {}, got {}".format(
+                    typing.Union[tuple, str], type(filter_by)
+                ))
+
+        affected_versions = list()
+        for product in self.affects[v_name]:
+            if product.name.startswith(p_name):
+                affected_versions.extend(
+                    [version for version in product.version_data]
+                )
+
+        return affected_versions
 
     @classmethod
     def from_dict(cls, data):
@@ -29,6 +106,9 @@ class CVE(object):
 
         # CVE ID
         cve_id = cve_dict.get('CVE_data_meta', {}).get('ID')
+
+        # Affects
+        affects = AffectsNode.from_dict(cve_dict.get('affects', {}))
 
         # References
         references_data = cve_dict.get('references', {}).get('reference_data', [])
@@ -49,12 +129,62 @@ class CVE(object):
         configurations = [ConfigurationNode.from_dict(x) for x in data.get('configurations', {}).get('nodes', [])]
 
         return cls(cve_id=cve_id,
+                   affects=affects,
                    references=references,
                    description=description,
                    configurations=configurations,
                    impact=impact,
                    published_date=published_date,
                    last_modified_date=last_modified_date)
+
+
+class AffectsNode(AttrDict):
+    """AffectsNode is a dict structure of signatures {version: product}."""
+
+    def __init__(self, **kwargs):
+        """Initialize AffectsNode."""
+        super(AffectsNode, self).__init__(**kwargs)
+
+    @classmethod
+    def from_dict(cls, node_dict):
+        """Initialize AffectsNode from dictionary.
+
+        :param node_dict: dict, expected NVD `affects` json schema
+        """
+        vendor_data = node_dict.get('vendor', {}).get('vendor_data', [])  # type: list
+        vendor_dct = dict()
+        for v_entry in vendor_data:
+            vendor = v_entry.get('vendor_name', None)
+            if vendor:
+                vendor_dct[vendor] = list()
+                for p_entry in v_entry.get('product', {}).get('product_data', []):
+                    node = ProductNode(vendor, p_entry)
+                    vendor_dct[vendor].append(node)
+
+        return cls(**vendor_dct)
+
+
+class ProductNode(namedtuple('ProductNode', ['name', 'vendor', 'version_data'])):
+    """ProductNode is a class representing product.
+
+    The product is represented by its name, vendor and list of versions.
+    """
+
+    def __new__(cls, vendor, product_dict):
+        """Create ProductNode.
+
+        :param vendor: str, product vendor
+        :param product_dict: dict, expected NVD `product_data` json schema
+        """
+
+        name = product_dict.get('product_name', None)
+
+        version_data = product_dict.get('version', {}).get('version_data', [])
+        version_data = [v.get('version_value', None) for v in version_data]
+
+        return super(ProductNode, cls).__new__(
+            cls, name, vendor, version_data
+        )
 
 
 class ConfigurationOperators(Enum):
@@ -72,7 +202,7 @@ class ConfigurationOperators(Enum):
 
 class ConfigurationNode(object):
 
-    def __init__(self, cpe=None, operator=ConfigurationOperators.OR, negate=False, children=None):
+    def __init__(self, cpe: list = None, operator=ConfigurationOperators.OR, negate=False, children: list = None):
         self._cpe = cpe or []
         self._operator = operator
         self._negate = negate or False
@@ -110,11 +240,13 @@ class ConfigurationNode(object):
 
 class CPE(object):
 
-    def __init__(self, vulnerable, cpe22Uri, cpe23Uri, versionStartIncluding=None, versionStartExcluding=None,
-                 versionEndIncluding=None, versionEndExcluding=None):
+    def __init__(self, vulnerable: bool, cpe22Uri: str, cpe23Uri: str, versionStartIncluding: str = None,
+                 versionStartExcluding: str = None, versionEndIncluding: str = None, versionEndExcluding: str = None):
         self._vulnerable = vulnerable
         self._cpe22Uri = cpe22Uri
         self._cpe23Uri = cpe23Uri
+
+        self._cpe_parser = cpe.CPE(cpe22Uri)
 
         self._versionExact = cpe.CPE(cpe22Uri).get_version()[0] or None
 
@@ -124,21 +256,28 @@ class CPE(object):
         self._versionEndExcluding = versionEndExcluding
 
     def is_application(self):
-        return cpe.CPE(self.cpe22Uri).is_application()
+        return self._cpe_parser.is_application()
 
     def is_hardware(self):
-        return cpe.CPE(self.cpe22Uri).is_hardware()
+        return self._cpe_parser.is_hardware()
 
     def is_operating_system(self):
-        return cpe.CPE(self.cpe22Uri).is_operating_system()
+        return self._cpe_parser.is_operating_system()
 
     @property
     def vendor(self):
-        return cpe.CPE(self.cpe22Uri).get_vendor()[0]
+        return self._cpe_parser.get_vendor()[0]
 
     @property
     def product(self):
-        return cpe.CPE(self.cpe22Uri).get_product()[0]
+        return self._cpe_parser.get_product()[0]
+
+    def get_version_tuple(self):
+        return (
+            self._versionExact,
+            self._versionEndExcluding, self._versionEndIncluding,
+            self._versionStartIncluding, self._versionStartExcluding
+        )
 
     @property
     def vulnerable(self):
@@ -194,7 +333,7 @@ class CPE(object):
 
 class Impact(object):
 
-    def __init__(self, baseMetricV2, baseMetricV3):
+    def __init__(self, baseMetricV2: "BaseMetric", baseMetricV3: "BaseMetric"):
         self._baseMetricV2 = baseMetricV2 or None
         self._baseMetricV3 = baseMetricV3 or None
 
@@ -219,7 +358,7 @@ class Impact(object):
 
 class BaseMetric(object):
 
-    def __init__(self, cvss, severity, exploitabilityScore, impactScore, obtainAllPrivilege=False,
+    def __init__(self, cvss: "CVSS", severity: str, exploitabilityScore: int, impactScore: int, obtainAllPrivilege=False,
                  obtainUserPrivilege=False, obtainOtherPrivilege=False, userInteractionRequired=False):
         self._cvss = cvss
         self._severity = severity
@@ -284,8 +423,9 @@ class BaseMetric(object):
 
 class CVSS(object):
 
-    def __init__(self, version, vectorString, accessVector, accessComplexity, authentication, confidentialityImpact,
-                 integrityImpact, availabilityImpact, baseScore):
+    def __init__(self, version: str, vectorString: str, accessVector: str,
+                 accessComplexity: str, authentication: str, confidentialityImpact: str,
+                 integrityImpact: str, availabilityImpact: str, baseScore: int):
         self._version = version
         self._vectorString = vectorString
         self._accessVector = accessVector
