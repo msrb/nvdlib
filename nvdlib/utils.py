@@ -1,7 +1,6 @@
 """Module containing utilities for nvdlib package."""
 
 import operator
-import typing
 
 from collections import Mapping
 
@@ -50,7 +49,7 @@ class AttrDict(Mapping):
         return getattr(self, key)
 
 
-def get_victims_notation(version_tuple: typing.Sequence):
+def get_victims_notation(version_tuple: list):
     """Maps version range tuple to corresponding victims string notation.
     Assumes arguments ``version_range`` is a tuple or a sequence
     ``(versionExact, versionEndExcluding, versionEndIncluding, versionStartIncluding, versionEndExcluding)``

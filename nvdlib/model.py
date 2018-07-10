@@ -1,8 +1,6 @@
 import datetime
 import cpe
 
-import typing
-
 from collections import namedtuple
 from enum import Enum
 from itertools import chain
@@ -37,14 +35,14 @@ class CVE(object):
 
         return cpe_list
 
-    def get_affected_vendors(self) -> typing.List[str]:
+    def get_affected_vendors(self) -> list:
         """Get affected vendors.
 
         :returns: List[str], list of affected vendors
         """
         return list(self.affects.keys())
 
-    def get_affected_products(self, vendor: str = None) -> typing.List["ProductNode"]:
+    def get_affected_products(self, vendor: str = None) -> list:
         """Get affected products.
 
         :returns: List[ProductNode], list of affected products
@@ -62,10 +60,10 @@ class CVE(object):
 
         return affected_products
 
-    def get_affected_versions(self, filter_by: typing.Union[tuple, str]) -> typing.List[str]:
+    def get_affected_versions(self, filter_by) -> list:
         """Get affected versions.
 
-        :param filter_by: typing.Union[tuple, str]
+        :param filter_by: Union[tuple, str]
 
             Either tuple of (vendor, product) or cpe string to uniquely identify which
             affected products should be returned.
@@ -82,8 +80,8 @@ class CVE(object):
 
         else:
             raise TypeError(
-                "Argument `by` expected to be {}, got {}".format(
-                    typing.Union[tuple, str], type(filter_by)
+                "Argument `by` expected to be str or tuple, got {}".format(
+                    type(filter_by)
                 ))
 
         affected_versions = list()
