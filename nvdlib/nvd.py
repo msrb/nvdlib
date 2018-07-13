@@ -125,7 +125,7 @@ class JsonFeed(object):
 
     def cves(self):
         # TODO: stream the json(?), cache in memory
-        with open(self._data_path, 'r') as f:
+        with open(self._data_path, 'r', encoding='utf-8') as f:
             data = json.load(f).get('CVE_Items', [])
 
         for cve_dict in data:
