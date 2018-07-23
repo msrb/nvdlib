@@ -234,7 +234,7 @@ class ConfigurationNode(object):
         if 'negate' in node_dict:
             kwargs['negate'] = node_dict['negate']
         if 'children' in node_dict:
-            kwargs['children'] = [ConfigurationNode(x) for x in node_dict['children']]
+            kwargs['children'] = [ConfigurationNode.from_dict(x) for x in node_dict['children']]
         return cls(**kwargs)
 
 
