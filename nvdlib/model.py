@@ -27,13 +27,19 @@ class CVE(object):
         self.last_modified_date = last_modified_date
         # TODO: check for missing attributes
 
-    def get_cpe(self, cpe_type=None) -> list:
+    def get_cpe(self, cpe_type=None, nodes=None) -> list:
         def _is_type(uri: str, t: str):
             return uri.startswith("cpe:/%s" % t)
 
+        if nodes is None:
+            nodes = self.configurations
+
         cpe_list = list()
-        for node in self.configurations:
-            cpe_list.extend([cpe for cpe in node.cpe if _is_type(cpe.cpe22Uri, cpe_type)])
+        for node in nodes:
+            if node.children:
+                cpe_list.extend(self.get_cpe(cpe_type=cpe_type, nodes=node.children))
+
+            cpe_list.extend([x for x in node.cpe if _is_type(x.cpe22Uri, cpe_type)])
 
         return cpe_list
 
